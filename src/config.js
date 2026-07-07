@@ -9,7 +9,8 @@
 //   -> Application type: "Web application"
 //   -> Authorized JavaScript origins: add both
 //        http://localhost:5173          (local dev)
-//        https://<wherever-this-is-hosted>   (e.g. a GitHub Pages URL)
+//        https://clshot-gif.github.io   (this tool's GitHub Pages host —
+//                                         origin only, no /PDF-dream/ path)
 //   -> Create, then paste the Client ID below.
 //
 // Like the mobile app's client ID, this value is a public identifier, not a
