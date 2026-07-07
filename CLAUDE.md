@@ -28,6 +28,10 @@ A single static web page, no backend. Sign in with your own Google account, drop
 - `src/main.js` — DOM wiring + orchestration
 - `src/*.test.js` — vitest unit tests for the pure logic (`npm test`)
 
+## Status as of 2026-07-07 — inchworm progress bar
+
+Replaced the plain grey/rainbow upload progress bar with a small animation: an inchworm crawls left-to-right across a grass line as `completed/total` advances, turning the grass green behind her (grey → green uses the same blade-shaped CSS mask for both layers, so it looks like real grass rather than a bar with a fancy skin). At each 10%-of-total checkpoint, one small flora/fauna SVG icon fades in behind her — a fresh random 10 out of a 16-icon pool (`src/critters.js`) picked at the start of each upload run, so the reveal sequence differs every time. Icons are hand-drawn SVG (not cropped from raster source images) so they stay crisp at the ~20px display size. Implementation: `src/critters.js` (icon pool + `pickCritters`), `startProgressRun`/`setProgress` in `src/main.js`, `.grass-*`/`.critter*`/`.inchworm` rules in `src/style.css`. Verified visually via a local dev-server preview (screenshots at 0%/30%/75%/100%) and `src/critters.test.js` (3 tests). Shipped on branch `feature/inchworm-progress-bar`, not yet merged into `main`.
+
 ## Status as of 2026-07-06 — scaffolded, unit-tested, not yet real-world tested
 
 Everything in the spec is implemented and the pipeline works end-to-end against synthetic data (verified in a running dev server: a generated JPEG runs through `photoToPdf` and produces a valid PDF; sign-in wiring correctly builds the OAuth popup request; EXIF fallback to `lastModified` confirmed). `npm test` passes (8 tests covering session grouping and metadata shape).
@@ -48,4 +52,4 @@ Everything in the spec is implemented and the pipeline works end-to-end against 
 
 ## Git
 
-This is its own repo (`git init` done, root commit in place), separate from `../archive-capture`'s repo, since it's a distinct deployable tool. Not yet pushed to GitHub — no remote configured. Local git identity set to match `archive-capture` (Carter Shotwell / carter@cshotwell.com) since no global git identity exists on this machine.
+This is its own repo, separate from `../archive-capture`'s repo, since it's a distinct deployable tool. Pushed to GitHub as `clshot-gif/PDF-dream`, `main` is the baseline. Local git identity set to match `archive-capture` (Carter Shotwell / carter@cshotwell.com) since no global git identity exists on this machine — this had to be set again per-repo the first time a commit was made from a WSL-native `git` (as opposed to the Windows-side `git`), since they don't share config.
