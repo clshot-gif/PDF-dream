@@ -8,6 +8,10 @@
   --accent-hover: #e4a3b2;
   --accent-bg: rgba(217, 138, 156, 0.12);
   --sage: #8fae7d;
+  /* Repeating blade-of-grass tile, used as a mask for both the grey
+     "not yet crawled" layer and the green "crawled over" layer so the
+     two line up perfectly and the reveal looks like real grass, not a bar. */
+  --grass-mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 34'><path d='M2,34 C1,20 4,10 3,0 C5,10 6,22 5,34 Z M9,34 C8,18 12,8 10,0 C13,9 13,22 12,34 Z M17,34 C16,22 20,14 18,0 C21,10 21,24 20,34 Z M25,34 C24,16 27,6 26,0 C29,9 29,23 27,34 Z M33,34 C32,20 36,10 34,0 C37,10 38,23 36,34 Z' fill='black'/></svg>");
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   color: var(--text);
   color-scheme: dark;
@@ -125,32 +129,127 @@ button:disabled {
   margin: 1.5rem 0;
 }
 
-.progress-track {
+.grass-track {
   position: relative;
   width: 100%;
-  height: 14px;
-  border-radius: 999px;
-  background: var(--border);
-  overflow: hidden;
+  height: 64px;
 }
 
-.progress-fill {
+.grass-visual {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34px;
+}
+
+.grass-base,
+.grass-progress {
   position: absolute;
   top: 0;
   left: 0;
-  height: 100%;
+  bottom: 0;
+  -webkit-mask-image: var(--grass-mask);
+  mask-image: var(--grass-mask);
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-size: 40px 34px;
+  mask-size: 40px 34px;
+  -webkit-mask-position: bottom left;
+  mask-position: bottom left;
+}
+
+.grass-base {
+  width: 100%;
+  background: #6b675f; /* dead/greyed-out grass, not yet crawled over */
+}
+
+.grass-progress {
   width: 0%;
-  border-radius: 999px;
-  transition: width 0.4s ease, opacity 0.4s ease;
+  background: linear-gradient(180deg, #8fc46b, #4f8f3a);
+  transition: width 0.4s ease;
 }
 
-.progress-fill-grey {
-  background: #7a7580;
+/* Little flora/fauna icons that pop up at 10%-of-total checkpoints,
+   behind the inchworm (lower z-index) as a small surprise per reveal. */
+.critter-layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 28px;
+  height: 30px;
+  z-index: 1;
+  pointer-events: none;
 }
 
-.progress-fill-rainbow {
-  background: linear-gradient(90deg, #e0947a, #d9b968, #8fae7d, #8fa8c9, #d98a9c, #e0947a);
+.critter {
+  position: absolute;
+  bottom: 0;
+  width: 20px;
+  height: 20px;
   opacity: 0;
+  transform: translate(-50%, 6px) scale(0.6);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.critter.revealed {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.critter svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.inchworm {
+  position: absolute;
+  bottom: 24px;
+  left: 0%;
+  width: 40px;
+  height: 20px;
+  z-index: 2;
+  transform: translate(-50%, 0);
+  transition: left 0.4s ease;
+  pointer-events: none;
+}
+
+.inchworm svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.worm-seg {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+@keyframes worm-hump {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.inchworm.crawling .worm-seg-1 {
+  animation: worm-hump 0.8s ease-in-out infinite;
+}
+.inchworm.crawling .worm-seg-2 {
+  animation: worm-hump 0.8s ease-in-out infinite;
+  animation-delay: 0.1s;
+}
+.inchworm.crawling .worm-seg-3 {
+  animation: worm-hump 0.8s ease-in-out infinite;
+  animation-delay: 0.2s;
+}
+.inchworm.crawling .worm-seg-4 {
+  animation: worm-hump 0.8s ease-in-out infinite;
+  animation-delay: 0.3s;
 }
 
 .progress-text {

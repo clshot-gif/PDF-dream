@@ -7,6 +7,7 @@ import { groupIntoSessions } from './sessions.js';
 import { findOrCreateFolder, resolveNestedFolder, uploadPdf } from './drive.js';
 import { fromFileList, fromDirectoryInput, fromDataTransfer } from './fileCollection.js';
 import { pickMessage } from './messages.js';
+import { pickCritters } from './critters.js';
 
 document.querySelector('#app').innerHTML = `
   <div class="wrap">
@@ -36,9 +37,25 @@ document.querySelector('#app').innerHTML = `
     </section>
 
     <section id="progressSection" class="progress-section" hidden>
-      <div class="progress-track">
-        <div id="progressFillGrey" class="progress-fill progress-fill-grey"></div>
-        <div id="progressFillRainbow" class="progress-fill progress-fill-rainbow"></div>
+      <div class="grass-track">
+        <div id="critterLayer" class="critter-layer"></div>
+        <div id="inchworm" class="inchworm">
+          <svg viewBox="0 0 40 20" xmlns="http://www.w3.org/2000/svg">
+            <g fill="#8fae7d" stroke="#5f7d4f" stroke-width="0.6">
+              <ellipse class="worm-seg worm-seg-4" cx="8" cy="14" rx="5" ry="4.2" />
+              <ellipse class="worm-seg worm-seg-3" cx="16" cy="14" rx="5" ry="4.2" />
+              <ellipse class="worm-seg worm-seg-2" cx="24" cy="14" rx="5" ry="4.2" />
+              <ellipse class="worm-seg worm-seg-1" cx="31" cy="12" rx="5.5" ry="5" />
+            </g>
+            <line class="worm-seg worm-seg-1" x1="33" y1="7" x2="31" y2="3" stroke="#5f7d4f" stroke-width="1" stroke-linecap="round" />
+            <line class="worm-seg worm-seg-1" x1="35" y1="7" x2="37" y2="3" stroke="#5f7d4f" stroke-width="1" stroke-linecap="round" />
+            <circle class="worm-seg worm-seg-1" cx="34" cy="9" r="1" fill="#2b2b2b" />
+          </svg>
+        </div>
+        <div class="grass-visual">
+          <div class="grass-base"></div>
+          <div id="grassProgress" class="grass-progress"></div>
+        </div>
       </div>
       <div id="progressText" class="progress-text"></div>
     </section>
@@ -56,8 +73,9 @@ const folderPicker = document.querySelector('#folderPicker');
 const fileSummary = document.querySelector('#fileSummary');
 const uploadBtn = document.querySelector('#uploadBtn');
 const progressSection = document.querySelector('#progressSection');
-const progressFillGrey = document.querySelector('#progressFillGrey');
-const progressFillRainbow = document.querySelector('#progressFillRainbow');
+const grassProgress = document.querySelector('#grassProgress');
+const inchworm = document.querySelector('#inchworm');
+const critterLayer = document.querySelector('#critterLayer');
 const progressText = document.querySelector('#progressText');
 const subtitle = document.querySelector('#subtitle');
 const log = document.querySelector('#log');
@@ -138,13 +156,39 @@ dropzone.addEventListener('drop', async (e) => {
   addItems(items);
 });
 
-function setProgress(completed, total, label) {
+let critterEls = [];
+
+// Called once per upload run: resets the track and picks 10 random
+// flora/fauna (a fresh, different mix each time) to reveal at each
+// 10%-of-total checkpoint as the inchworm crawls past.
+function startProgressRun() {
   progressSection.hidden = false;
+  grassProgress.style.width = '0%';
+  inchworm.style.left = '0%';
+  inchworm.classList.add('crawling');
+
+  critterLayer.innerHTML = '';
+  critterEls = pickCritters(10).map((critter, i) => {
+    const threshold = (i + 1) * 10; // 10%, 20%, ... 100%
+    const el = document.createElement('div');
+    el.className = 'critter';
+    el.style.left = `${threshold}%`;
+    el.dataset.threshold = String(threshold);
+    el.innerHTML = critter.svg;
+    critterLayer.appendChild(el);
+    return el;
+  });
+}
+
+function setProgress(completed, total, label) {
   const fraction = total > 0 ? completed / total : 0;
-  const pct = `${fraction * 100}%`;
-  progressFillGrey.style.width = pct;
-  progressFillRainbow.style.width = pct;
-  progressFillRainbow.style.opacity = fraction; // grey at the start, full rainbow right as it finishes
+  const pct = fraction * 100;
+  grassProgress.style.width = `${pct}%`;
+  inchworm.style.left = `${pct}%`;
+  for (const el of critterEls) {
+    if (pct >= Number(el.dataset.threshold)) el.classList.add('revealed');
+  }
+  if (pct >= 100) inchworm.classList.remove('crawling');
   progressText.textContent = label ?? `${completed} of ${total} file(s) uploaded`;
 }
 
@@ -188,6 +232,7 @@ async function runUpload(items) {
   const total = items.length;
   let completed = 0;
   const failures = [];
+  startProgressRun();
   setProgress(completed, total);
 
   for (const session of sessions) {
