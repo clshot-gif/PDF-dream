@@ -32,7 +32,7 @@ export async function findOrCreateFolder(token, name, parentId = null) {
     headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!createRes.ok) throw new Error(`Drive folder create failed: ${createRes.status}`);
+  if (!createRes.ok) throw new Error(`Drive folder create failed: ${createRes.status} ${await createRes.text()}`);
   const folder = await createRes.json();
   return folder.id;
 }
@@ -43,7 +43,7 @@ export async function uploadPdf(token, { bytes, filename, folderId, properties }
     headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: filename, parents: [folderId], properties }),
   });
-  if (!metaRes.ok) throw new Error(`Drive file create failed: ${metaRes.status}`);
+  if (!metaRes.ok) throw new Error(`Drive file create failed: ${metaRes.status} ${await metaRes.text()}`);
   const { id: fileId } = await metaRes.json();
 
   const uploadRes = await fetch(`${UPLOAD_URL}/${fileId}?uploadType=media`, {
@@ -51,6 +51,6 @@ export async function uploadPdf(token, { bytes, filename, folderId, properties }
     headers: { ...authHeaders(token), 'Content-Type': 'application/pdf' },
     body: bytes,
   });
-  if (!uploadRes.ok) throw new Error(`Drive upload failed: ${uploadRes.status}`);
+  if (!uploadRes.ok) throw new Error(`Drive upload failed: ${uploadRes.status} ${await uploadRes.text()}`);
   return fileId;
 }
