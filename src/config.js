@@ -18,7 +18,7 @@
 // publishing status, Hannah's and Justina's Google accounts also need to be
 // added under OAuth consent screen -> Test users (same step already done for
 // the mobile app) before they can sign in here.
-export const GOOGLE_CLIENT_ID = 'REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com';
+export const GOOGLE_CLIENT_ID = '526107030062-6oi1efntt7ube02q4v1l63gv0k2hpn4p.apps.googleusercontent.com';
 
 // drive.file: access only to files/folders this app creates or that the user
 // explicitly opens with it — never blanket access to their whole Drive.
