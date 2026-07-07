@@ -45,7 +45,7 @@ describe('groupIntoSessions', () => {
     expect(sessions[0].items.map((i) => i.file.name)).toEqual(['earlier.jpg', 'later.jpg']);
   });
 
-  it('groups by top-level folder when relativePath is present, ignoring timestamps', () => {
+  it('groups by the full containing-folder path, ignoring timestamps', () => {
     const items = [
       item('a.jpg', '2026-07-05T09:00:00Z', 'Session A/a.jpg'),
       item('b.jpg', '2026-07-06T14:00:00Z', 'Session A/sub/b.jpg'),
@@ -54,10 +54,31 @@ describe('groupIntoSessions', () => {
 
     const sessions = groupIntoSessions(items);
 
-    expect(sessions).toHaveLength(2);
+    // "Session A/sub" must stay distinct from "Session A" — collapsing both
+    // to just the top segment was the bug that flattened real folder
+    // structure (e.g. "Eliza Poster/Originals" and "Eliza Poster/Ready"
+    // both landing in one "Eliza Poster" group).
+    expect(sessions).toHaveLength(3);
     const byName = Object.fromEntries(sessions.map((s) => [s.name, s.items.map((i) => i.file.name)]));
-    expect(byName['Session A']).toEqual(['a.jpg', 'b.jpg']);
+    expect(byName['Session A']).toEqual(['a.jpg']);
+    expect(byName['Session A/sub']).toEqual(['b.jpg']);
     expect(byName['Session B']).toEqual(['c.jpg']);
+  });
+
+  it('keeps sibling subfolders under a common top-level folder separate', () => {
+    const items = [
+      item('book.pdf', '2026-07-05T09:00:00Z', 'Eliza Poster/Originals/book.pdf'),
+      item('book.pdf', '2026-07-05T09:01:00Z', 'Eliza Poster/Ready/book.pdf'),
+      item('poster.pub', '2026-07-05T09:02:00Z', 'Eliza Poster/poster.pub'),
+    ];
+
+    const sessions = groupIntoSessions(items);
+
+    expect(sessions).toHaveLength(3);
+    const byName = Object.fromEntries(sessions.map((s) => [s.name, s.items.map((i) => i.file.name)]));
+    expect(byName['Eliza Poster/Originals']).toEqual(['book.pdf']);
+    expect(byName['Eliza Poster/Ready']).toEqual(['book.pdf']);
+    expect(byName['Eliza Poster']).toEqual(['poster.pub']);
   });
 
   it('buckets loose files without a folder into "Ungrouped" when mixed with folder items', () => {

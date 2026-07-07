@@ -62,6 +62,19 @@ export async function findOrCreateFolder(token, name, parentId = null) {
   return folder.id;
 }
 
+// Resolves (creating as needed) a possibly multi-segment folder path under
+// a parent, e.g. "Eliza Poster/Originals" -> two real nested Drive folders,
+// not one folder literally named with a slash in it. A single-segment path
+// (a plain session name with no subfolder) just creates the one folder, same
+// as calling findOrCreateFolder directly.
+export async function resolveNestedFolder(token, parentId, folderPath) {
+  let currentParentId = parentId;
+  for (const segment of folderPath.split('/').filter(Boolean)) {
+    currentParentId = await findOrCreateFolder(token, segment, currentParentId);
+  }
+  return currentParentId;
+}
+
 export async function uploadPdf(token, { bytes, filename, folderId, properties }) {
   const metaRes = await fetchWithRetry(FILES_URL, {
     method: 'POST',

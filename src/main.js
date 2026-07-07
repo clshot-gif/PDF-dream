@@ -4,7 +4,7 @@ import { readCapturedAt } from './exif.js';
 import { photoToPdf, isPdf } from './pdfBuilder.js';
 import { buildMetadata, flattenMetadata } from './metadata.js';
 import { groupIntoSessions } from './sessions.js';
-import { findOrCreateFolder, uploadPdf } from './drive.js';
+import { findOrCreateFolder, resolveNestedFolder, uploadPdf } from './drive.js';
 import { fromFileList, fromDirectoryInput, fromDataTransfer } from './fileCollection.js';
 
 document.querySelector('#app').innerHTML = `
@@ -169,7 +169,7 @@ async function runUpload(items) {
   setProgress(completed, total);
 
   for (const session of sessions) {
-    const sessionFolderId = await findOrCreateFolder(token, session.name, rootFolderId);
+    const sessionFolderId = await resolveNestedFolder(token, rootFolderId, session.name);
     logLine(`Session "${session.name}": ${session.items.length} file(s)`);
 
     for (const item of session.items) {
