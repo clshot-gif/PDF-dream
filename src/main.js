@@ -34,6 +34,11 @@ document.querySelector('#app').innerHTML = `
       <button id="uploadBtn" disabled>Upload to Drive</button>
     </section>
 
+    <section id="progressSection" class="progress-section" hidden>
+      <progress id="progressBar" max="100" value="0"></progress>
+      <div id="progressText" class="progress-text"></div>
+    </section>
+
     <section id="log" class="log"></section>
   </div>
 `;
@@ -46,6 +51,9 @@ const filePicker = document.querySelector('#filePicker');
 const folderPicker = document.querySelector('#folderPicker');
 const fileSummary = document.querySelector('#fileSummary');
 const uploadBtn = document.querySelector('#uploadBtn');
+const progressSection = document.querySelector('#progressSection');
+const progressBar = document.querySelector('#progressBar');
+const progressText = document.querySelector('#progressText');
 const log = document.querySelector('#log');
 
 let collectedItems = []; // [{ file, relativePath }]
@@ -111,12 +119,25 @@ dropzone.addEventListener('drop', async (e) => {
   addItems(items);
 });
 
+function setProgress(completed, total, label) {
+  progressSection.hidden = false;
+  progressBar.max = total;
+  progressBar.value = completed;
+  progressText.textContent = label ?? `${completed} of ${total} file(s) uploaded`;
+}
+
 uploadBtn.addEventListener('click', async () => {
   uploadBtn.disabled = true;
   log.textContent = '';
+  progressSection.hidden = true;
   try {
-    await runUpload(collectedItems);
-    logLine('Done. Check the new "Unprocessed …" folder in your Drive.');
+    const { completed, total, failures } = await runUpload(collectedItems);
+    if (failures.length === 0) {
+      logLine(`Done — all ${total} file(s) uploaded. Check the new "Unprocessed …" folder in your Drive.`);
+    } else {
+      logLine(`Done with errors — ${completed} of ${total} uploaded, ${failures.length} failed:`);
+      for (const f of failures) logLine(`  FAILED ${f.filename}: ${f.error}`);
+    }
     collectedItems = [];
     fileSummary.textContent = '';
   } catch (err) {
@@ -142,6 +163,11 @@ async function runUpload(items) {
   const rootFolderId = await findOrCreateFolder(token, rootName);
   logLine(`Created Drive folder "${rootName}".`);
 
+  const total = items.length;
+  let completed = 0;
+  const failures = [];
+  setProgress(completed, total);
+
   for (const session of sessions) {
     const sessionFolderId = await findOrCreateFolder(token, session.name, rootFolderId);
     logLine(`Session "${session.name}": ${session.items.length} file(s)`);
@@ -150,21 +176,34 @@ async function runUpload(items) {
       const baseName = item.file.name.replace(/\.[^.]+$/, '');
       const filename = `${baseName}.pdf`;
 
-      let pdfBytes;
-      if (isPdf(item.file)) {
-        pdfBytes = new Uint8Array(await item.file.arrayBuffer());
-      } else {
-        pdfBytes = await photoToPdf(item.file);
+      // Keep going on a per-file failure (e.g. a transient blip that outlasted
+      // the retries, or one bad file) instead of aborting the whole batch —
+      // she shouldn't have to restart a 200-file run because of one file.
+      try {
+        let pdfBytes;
+        if (isPdf(item.file)) {
+          pdfBytes = new Uint8Array(await item.file.arrayBuffer());
+        } else {
+          pdfBytes = await photoToPdf(item.file);
+        }
+
+        const metadata = buildMetadata({ capturedAt: item.capturedAt, filename, pageCount: 1 });
+        await uploadPdf(token, {
+          bytes: pdfBytes,
+          filename,
+          folderId: sessionFolderId,
+          properties: flattenMetadata(metadata),
+        });
+        logLine(`  Uploaded ${filename}`);
+      } catch (err) {
+        logLine(`  FAILED ${filename}: ${err.message}`);
+        failures.push({ filename, error: err.message });
       }
 
-      const metadata = buildMetadata({ capturedAt: item.capturedAt, filename, pageCount: 1 });
-      await uploadPdf(token, {
-        bytes: pdfBytes,
-        filename,
-        folderId: sessionFolderId,
-        properties: flattenMetadata(metadata),
-      });
-      logLine(`  Uploaded ${filename}`);
+      completed += 1;
+      setProgress(completed, total);
     }
   }
+
+  return { completed: completed - failures.length, total, failures };
 }
