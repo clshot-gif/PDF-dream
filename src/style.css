@@ -1,12 +1,16 @@
 :root {
-  --text: #2a2733;
-  --text-muted: #6b6375;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.08);
+  --bg: #1b1a1f;
+  --bg-card: #242229;
+  --text: #f1ede4;
+  --text-muted: #a79fae;
+  --border: #3a3740;
+  --accent: #d98a9c;
+  --accent-hover: #e4a3b2;
+  --accent-bg: rgba(217, 138, 156, 0.12);
+  --sage: #8fae7d;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   color: var(--text);
+  color-scheme: dark;
 }
 
 body {
@@ -17,28 +21,42 @@ body {
 .wrap {
   max-width: 640px;
   margin: 0 auto;
-  padding: 2rem 1.25rem 4rem;
+  padding: 2.5rem 1.25rem 4rem;
 }
 
 h1 {
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.4rem;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
   color: var(--text-muted);
   margin-top: 0;
   margin-bottom: 2rem;
+  min-height: 1.4em;
+  font-size: 1.05rem;
+  transition: opacity 0.4s ease;
+}
+
+.subtitle.fading {
+  opacity: 0;
 }
 
 button {
   font: inherit;
   font-weight: 600;
   padding: 0.7rem 1.4rem;
-  border-radius: 8px;
+  border-radius: 10px;
   border: none;
   background: var(--accent);
-  color: #fff;
+  color: #241a1e;
   cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 
 button:disabled {
@@ -65,11 +83,12 @@ button:disabled {
 
 .dropzone {
   border: 2px dashed var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 2.5rem 1.5rem;
   text-align: center;
   color: var(--text-muted);
   margin-bottom: 1rem;
+  background: var(--bg-card);
 }
 
 .dropzone.dragover {
@@ -86,10 +105,11 @@ button:disabled {
   display: inline-block;
   margin: 0 0.35rem;
   padding: 0.55rem 1.1rem;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   cursor: pointer;
   color: var(--text);
+  background: transparent;
 }
 
 .pick-btn-secondary {
@@ -102,19 +122,42 @@ button:disabled {
 }
 
 .progress-section {
-  margin: 1.25rem 0;
+  margin: 1.5rem 0;
 }
 
-.progress-section progress {
+.progress-track {
+  position: relative;
   width: 100%;
-  height: 10px;
-  accent-color: var(--accent);
+  height: 14px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  transition: width 0.4s ease, opacity 0.4s ease;
+}
+
+.progress-fill-grey {
+  background: #7a7580;
+}
+
+.progress-fill-rainbow {
+  background: linear-gradient(90deg, #e0947a, #d9b968, #8fae7d, #8fa8c9, #d98a9c, #e0947a);
+  opacity: 0;
 }
 
 .progress-text {
   margin-top: 0.4rem;
   color: var(--text-muted);
   font-size: 0.9rem;
+  text-align: center;
 }
 
 .log {

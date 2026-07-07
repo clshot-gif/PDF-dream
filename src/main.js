@@ -6,11 +6,12 @@ import { buildMetadata, flattenMetadata } from './metadata.js';
 import { groupIntoSessions } from './sessions.js';
 import { findOrCreateFolder, resolveNestedFolder, uploadPdf } from './drive.js';
 import { fromFileList, fromDirectoryInput, fromDataTransfer } from './fileCollection.js';
+import { pickMessage } from './messages.js';
 
 document.querySelector('#app').innerHTML = `
   <div class="wrap">
-    <h1>Unprocessed</h1>
-    <p class="subtitle">Turn a pile of archive photos into organized PDFs in your own Google Drive.</p>
+    <h1>Reclaim your time</h1>
+    <p class="subtitle" id="subtitle"></p>
 
     <section id="authSection">
       <button id="signInBtn">Sign in with Google</button>
@@ -35,7 +36,10 @@ document.querySelector('#app').innerHTML = `
     </section>
 
     <section id="progressSection" class="progress-section" hidden>
-      <progress id="progressBar" max="100" value="0"></progress>
+      <div class="progress-track">
+        <div id="progressFillGrey" class="progress-fill progress-fill-grey"></div>
+        <div id="progressFillRainbow" class="progress-fill progress-fill-rainbow"></div>
+      </div>
       <div id="progressText" class="progress-text"></div>
     </section>
 
@@ -52,11 +56,26 @@ const folderPicker = document.querySelector('#folderPicker');
 const fileSummary = document.querySelector('#fileSummary');
 const uploadBtn = document.querySelector('#uploadBtn');
 const progressSection = document.querySelector('#progressSection');
-const progressBar = document.querySelector('#progressBar');
+const progressFillGrey = document.querySelector('#progressFillGrey');
+const progressFillRainbow = document.querySelector('#progressFillRainbow');
 const progressText = document.querySelector('#progressText');
+const subtitle = document.querySelector('#subtitle');
 const log = document.querySelector('#log');
 
 let collectedItems = []; // [{ file, relativePath }]
+
+// Cycles through things she could be doing instead of chores — replaces the
+// old static description entirely, runs continuously regardless of upload state.
+let currentMessage = pickMessage();
+subtitle.textContent = currentMessage;
+setInterval(() => {
+  subtitle.classList.add('fading');
+  setTimeout(() => {
+    currentMessage = pickMessage(currentMessage);
+    subtitle.textContent = currentMessage;
+    subtitle.classList.remove('fading');
+  }, 400);
+}, 4000);
 
 function logLine(text) {
   const line = document.createElement('div');
@@ -121,8 +140,11 @@ dropzone.addEventListener('drop', async (e) => {
 
 function setProgress(completed, total, label) {
   progressSection.hidden = false;
-  progressBar.max = total;
-  progressBar.value = completed;
+  const fraction = total > 0 ? completed / total : 0;
+  const pct = `${fraction * 100}%`;
+  progressFillGrey.style.width = pct;
+  progressFillRainbow.style.width = pct;
+  progressFillRainbow.style.opacity = fraction; // grey at the start, full rainbow right as it finishes
   progressText.textContent = label ?? `${completed} of ${total} file(s) uploaded`;
 }
 
