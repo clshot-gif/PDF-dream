@@ -75,7 +75,10 @@ export async function resolveNestedFolder(token, parentId, folderPath) {
   return currentParentId;
 }
 
-export async function uploadPdf(token, { bytes, filename, folderId, properties }) {
+// Uploads whatever bytes it's given under whatever mimeType it's given —
+// not always a PDF, since files that can't be converted (docx, etc.) get
+// uploaded in their original format.
+export async function uploadFile(token, { bytes, filename, folderId, properties, mimeType = 'application/pdf' }) {
   const metaRes = await fetchWithRetry(FILES_URL, {
     method: 'POST',
     headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
@@ -85,7 +88,7 @@ export async function uploadPdf(token, { bytes, filename, folderId, properties }
 
   await fetchWithRetry(`${UPLOAD_URL}/${fileId}?uploadType=media`, {
     method: 'PATCH',
-    headers: { ...authHeaders(token), 'Content-Type': 'application/pdf' },
+    headers: { ...authHeaders(token), 'Content-Type': mimeType },
     body: bytes,
   });
   return fileId;

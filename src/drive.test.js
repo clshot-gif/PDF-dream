@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { resolveNestedFolder } from './drive.js';
+import { resolveNestedFolder, uploadFile } from './drive.js';
 
 // Fakes the two Drive calls findOrCreateFolder makes per segment: a search
 // (always "not found" here) then a create, returning an id derived from the
@@ -49,5 +49,45 @@ describe('resolveNestedFolder', () => {
     const createCalls = fetchMock.mock.calls.filter(([, options]) => options?.method === 'POST');
     expect(createCalls).toHaveLength(1);
     expect(JSON.parse(createCalls[0][1].body)).toMatchObject({ name: 'Ungrouped', parents: ['root-id'] });
+  });
+});
+
+describe('uploadFile', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('defaults to application/pdf when no mimeType is given', async () => {
+    const fetchMock = vi.fn(async (url, options) => {
+      if (options.method === 'POST') return { ok: true, json: async () => ({ id: 'file-id' }) };
+      return { ok: true, json: async () => ({}) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await uploadFile('token', { bytes: new Uint8Array(), filename: 'doc.pdf', folderId: 'folder-id', properties: {} });
+
+    const patchCall = fetchMock.mock.calls.find(([, options]) => options.method === 'PATCH');
+    expect(patchCall[1].headers['Content-Type']).toBe('application/pdf');
+  });
+
+  it('uploads with the given mimeType for files that were copied as-is', async () => {
+    const fetchMock = vi.fn(async (url, options) => {
+      if (options.method === 'POST') return { ok: true, json: async () => ({ id: 'file-id' }) };
+      return { ok: true, json: async () => ({}) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await uploadFile('token', {
+      bytes: new Uint8Array(),
+      filename: 'report.docx',
+      folderId: 'folder-id',
+      properties: {},
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+
+    const patchCall = fetchMock.mock.calls.find(([, options]) => options.method === 'PATCH');
+    expect(patchCall[1].headers['Content-Type']).toBe(
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
   });
 });

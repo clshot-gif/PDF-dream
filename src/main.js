@@ -1,10 +1,10 @@
 import './style.css';
 import { initAuth, signIn, signOut, getAccessToken } from './auth.js';
 import { readCapturedAt } from './exif.js';
-import { photoToPdf, isPdf } from './pdfBuilder.js';
+import { photoToPdf, isPdf, isImage } from './pdfBuilder.js';
 import { buildMetadata, flattenMetadata } from './metadata.js';
 import { groupIntoSessions } from './sessions.js';
-import { findOrCreateFolder, resolveNestedFolder, uploadPdf } from './drive.js';
+import { findOrCreateFolder, resolveNestedFolder, uploadFile } from './drive.js';
 import { fromFileList, fromDirectoryInput, fromDataTransfer } from './fileCollection.js';
 import { pickMessage } from './messages.js';
 import { pickCritters } from './critters.js';
@@ -21,11 +21,11 @@ document.querySelector('#app').innerHTML = `
 
     <section id="pickSection" class="disabled">
       <div id="dropzone" class="dropzone">
-        Drop photos, PDFs, or a whole folder here
+        Drop photos, PDFs, or any other files — or a whole folder — here
         <div class="dropzone-or">— or —</div>
         <label class="pick-btn">
           Choose files
-          <input type="file" id="filePicker" multiple accept="image/*,.pdf,.heic,.heif" hidden />
+          <input type="file" id="filePicker" multiple hidden />
         </label>
         <label class="pick-btn pick-btn-secondary">
           Choose a folder (desktop)
@@ -197,12 +197,16 @@ uploadBtn.addEventListener('click', async () => {
   log.textContent = '';
   progressSection.hidden = true;
   try {
-    const { completed, total, failures } = await runUpload(collectedItems);
+    const { completed, total, failures, copiedAsIs } = await runUpload(collectedItems);
     if (failures.length === 0) {
       logLine(`Done — all ${total} file(s) uploaded. Check the new "Unprocessed …" folder in your Drive.`);
     } else {
       logLine(`Done with errors — ${completed} of ${total} uploaded, ${failures.length} failed:`);
       for (const f of failures) logLine(`  FAILED ${f.filename}: ${f.error}`);
+    }
+    if (copiedAsIs.length > 0) {
+      logLine(`${copiedAsIs.length} file(s) couldn't be converted to PDF, so they were uploaded in their original format:`);
+      for (const name of copiedAsIs) logLine(`  ${name}`);
     }
     collectedItems = [];
     fileSummary.textContent = '';
@@ -232,6 +236,7 @@ async function runUpload(items) {
   const total = items.length;
   let completed = 0;
   const failures = [];
+  const copiedAsIs = [];
   startProgressRun();
   setProgress(completed, total);
 
@@ -240,31 +245,56 @@ async function runUpload(items) {
     logLine(`Session "${session.name}": ${session.items.length} file(s)`);
 
     for (const item of session.items) {
-      const baseName = item.file.name.replace(/\.[^.]+$/, '');
-      const filename = `${baseName}.pdf`;
+      const originalName = item.file.name;
+      const baseName = originalName.replace(/\.[^.]+$/, '');
 
       // Keep going on a per-file failure (e.g. a transient blip that outlasted
       // the retries, or one bad file) instead of aborting the whole batch —
       // she shouldn't have to restart a 200-file run because of one file.
       try {
-        let pdfBytes;
+        let bytes;
+        let filename;
+        let mimeType;
+        let converted;
+
         if (isPdf(item.file)) {
-          pdfBytes = new Uint8Array(await item.file.arrayBuffer());
+          bytes = new Uint8Array(await item.file.arrayBuffer());
+          filename = `${baseName}.pdf`;
+          mimeType = 'application/pdf';
+          converted = true;
+        } else if (isImage(item.file)) {
+          bytes = await photoToPdf(item.file);
+          filename = `${baseName}.pdf`;
+          mimeType = 'application/pdf';
+          converted = true;
         } else {
-          pdfBytes = await photoToPdf(item.file);
+          // Not a pic and not already a PDF (e.g. a .docx) — everything that
+          // gets dragged in still gets uploaded, just untouched, since there's
+          // no conversion path for it here.
+          bytes = new Uint8Array(await item.file.arrayBuffer());
+          filename = originalName;
+          mimeType = item.file.type || 'application/octet-stream';
+          converted = false;
         }
 
         const metadata = buildMetadata({ capturedAt: item.capturedAt, filename, pageCount: 1 });
-        await uploadPdf(token, {
-          bytes: pdfBytes,
+        await uploadFile(token, {
+          bytes,
           filename,
+          mimeType,
           folderId: sessionFolderId,
           properties: flattenMetadata(metadata),
         });
-        logLine(`  Uploaded ${filename}`);
+
+        if (converted) {
+          logLine(`  Uploaded ${filename}`);
+        } else {
+          logLine(`  Uploaded ${filename} (copied as-is — couldn't convert to PDF)`);
+          copiedAsIs.push(filename);
+        }
       } catch (err) {
-        logLine(`  FAILED ${filename}: ${err.message}`);
-        failures.push({ filename, error: err.message });
+        logLine(`  FAILED ${originalName}: ${err.message}`);
+        failures.push({ filename: originalName, error: err.message });
       }
 
       completed += 1;
@@ -272,5 +302,5 @@ async function runUpload(items) {
     }
   }
 
-  return { completed: completed - failures.length, total, failures };
+  return { completed: completed - failures.length, total, failures, copiedAsIs };
 }

@@ -28,3 +28,15 @@ export function isPdf(file) {
   const name = (file.name || '').toLowerCase();
   return type === 'application/pdf' || name.endsWith('.pdf');
 }
+
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tif', '.tiff', '.heic', '.heif'];
+
+// Whether this is something photoToPdf knows how to convert. Anything else
+// (docx, txt, zip, ...) isn't a "pic" — it gets uploaded untouched instead
+// of being forced through the photo pipeline.
+export function isImage(file) {
+  const type = (file.type || '').toLowerCase();
+  const name = (file.name || '').toLowerCase();
+  if (type.startsWith('image/')) return true;
+  return IMAGE_EXTENSIONS.some((ext) => name.endsWith(ext));
+}
