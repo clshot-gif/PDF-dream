@@ -90,4 +90,29 @@ describe('uploadFile', () => {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     );
   });
+
+  // Guards against the mistake of skipping metadata for a passed-through
+  // PDF or a copied-as-is file (docx, etc.) — main.js builds it the same
+  // way regardless of which of the three upload paths a file took, and
+  // this confirms uploadFile actually forwards whatever it's given rather
+  // than only doing so for the "converted from a photo" case.
+  it('attaches whatever metadata properties it is given, regardless of file type', async () => {
+    const fetchMock = vi.fn(async (url, options) => {
+      if (options.method === 'POST') return { ok: true, json: async () => ({ id: 'file-id' }) };
+      return { ok: true, json: async () => ({}) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const properties = { captured_at: '2026-07-05T22:14:03.912Z', temp_filename: 'already-a-pdf.pdf', box: '' };
+    await uploadFile('token', {
+      bytes: new Uint8Array(),
+      filename: 'already-a-pdf.pdf',
+      folderId: 'folder-id',
+      mimeType: 'application/pdf',
+      properties,
+    });
+
+    const createCall = fetchMock.mock.calls.find(([, options]) => options.method === 'POST');
+    expect(JSON.parse(createCall[1].body).properties).toEqual(properties);
+  });
 });
